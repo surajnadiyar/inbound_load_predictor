@@ -1,34 +1,36 @@
-# inbound_predictor.py
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
 import requests
 
 st.set_page_config(page_title="Medchal_GW Predictor", layout="wide")
-
 st.title("Medchal_GW Inbound Load Predictor")
 st.markdown("**By Suraj Kumar** | **95%+ Accuracy | Real Delhivery Ops**")
 
 # --- CSV UPLOAD ---
-st.markdown("### Upload WBN Pickup Data")
+st.markdown("### Upload WBN Pickup Data (CSV)")
 uploaded_file = st.file_uploader(
     "Choose CSV (origin_city, wbn_count, pickup_time)",
     type="csv",
-    help="Example: Mumbai,45000,2025-11-03 16:30"
+    help="Example: Bhiwandi,45000,2025-11-03 16:30"
 )
 
 # --- DEFAULT DATA ---
+df = None
 if uploaded_file is None:
     st.info("Using sample data...")
     data = {
         'origin_city': ['Bhiwandi', 'Gurgaon', 'Bangalore', 'Ahmedabad', 'Kolkata', 'Chennai', 'Surat', 'Jaipur'],
-        'wbn_count': [45000, 38000, 32000],
-        'pickup_time': ['2025-11-03 16:30', '2025-11-03 17:45', '2025-11-03 15:20']
+        'wbn_count': [45000, 38000, 32000, 18654, 23648, 21937, 16342, 13473],
+        'pickup_time': ['2025-11-03 16:30', '2025-11-03 17:45', '2025-11-03 15:20', '2025-11-03 18:30', '2025-11-03 15:40', '2025-11-03 19:10', '2025-11-03 13:30', '2025-11-03 16:40']
     }
     df = pd.DataFrame(data)
 else:
     df = pd.read_csv(uploaded_file)
-    st.success(f"Loaded {len(df)} rows!")
+
+# --- SHOW DATA (CORRECT INDENT!) ---
+st.write("**Uploaded Data Preview:**")
+st.dataframe(df.head())  # ← FIXED: Removed extra spaces
+st.success(f"Loaded **{len(df)}** rows!")
 
 # --- CUTOFF & PREDICTION ---
 cutoff_db = {
@@ -39,10 +41,7 @@ cutoff_db = {
     'Kolkata': {'cutoff': '15:40', 'travel_hrs': 50},
     'Chennai': {'cutoff': '19:00', 'travel_hrs': 12},
     'Surat': {'cutoff': '19:50', 'travel_hrs': 20},
-    'Jaipur': {'cutoff': '12:40', 'travel_hrs': 40},    
-
-
-    
+    'Jaipur': {'cutoff': '16:40', 'travel_hrs': 40},
 }
 
 @st.cache_data(ttl=3600)
@@ -64,8 +63,11 @@ for _, row in df.iterrows():
         predicted += load
         details.append(f"**{city}**: {row['wbn_count']:,.0f} → **{load:,.0f} TPT**")
 
-local_fm = st.slider("Local FM Pickup", 0, 60000, 28000)
+local_fm = st.slider("**Local FM Pickup**", 0, 60000, 28000)
 final = int((predicted + local_fm) * 1.18)
 
 st.success(f"## Predicted Load: **{final:,.0f} TPT**")
-for d in details: st.markdown(d)
+st.markdown("---")
+st.markdown("### City-wise Breakdown:")
+for d in details:
+    st.markdown(d)
